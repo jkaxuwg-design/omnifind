@@ -460,8 +460,12 @@ const App: React.FC = () => {
   };
 
   const generateAIInsight = async (input: DivinationInput, res: DivinationResult) => {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    // 兼容 Vite 环境
+    const apiKey = (import.meta as any).env?.VITE_GOOGLE_API_KEY || '';
     
+    if (!apiKey) { setAiInsight({ content: t.missingKey }); return; }
+    
+    const ai = new GoogleGenAI({ apiKey });
     try {
       setAiInsight(null); 
       const promptLang = { en: 'English', zh: 'Simplified Chinese', tw: 'Traditional Chinese', ko: 'Korean' }[lang];

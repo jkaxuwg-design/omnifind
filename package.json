@@ -1,7 +1,7 @@
 {
   "name": "omni-find-divination",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,7 +11,7 @@
   "dependencies": {
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "@google/genai": "^0.1.2",
+    "@google/genai": "^0.5.0",
     "@modelcontextprotocol/sdk": "^1.0.0"
   },
   "devDependencies": {
