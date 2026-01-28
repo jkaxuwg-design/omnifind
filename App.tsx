@@ -460,47 +460,77 @@ const App: React.FC = () => {
   };
 
   const generateAIInsight = async (input: DivinationInput, res: DivinationResult) => {
-    // 兼容 Vite 环境
+    // 兼容 Vite 环境变量，增加安全检查
     const apiKey = (import.meta as any).env?.VITE_GOOGLE_API_KEY || '';
     
-    if (!apiKey) { setAiInsight({ content: t.missingKey }); return; }
+    if (!apiKey) { 
+        console.error("❌ API Key is missing. Please check Vercel Environment Variables.");
+        setAiInsight({ content: t.missingKey }); 
+        return; 
+    }
     
     const ai = new GoogleGenAI({ apiKey });
+    
     try {
       setAiInsight(null); 
       const promptLang = { en: 'English', zh: 'Simplified Chinese', tw: 'Traditional Chinese', ko: 'Korean' }[lang];
       
-      const prompt = `You are a Lost Item Finding Expert using I Ching and Metaphysics.
+      const prompt = `You are a professional I Ching Divination Expert.
       Respond in ${promptLang} ONLY.
       
-      User Lost: ${input.itemName}
-      Location: ${input.lostLocation || 'Unknown'}
+      User lost item: "${input.itemName}"
+      Location clue: "${input.lostLocation || 'Unknown'}"
       
-      [Metaphysical Analysis]
-      Item Category: ${res.itemCategory} (Element: ${res.usefulGodElement})
-      Hexagram Data: ${res.meihua.en}
+      [Divination Data]
+      Category: ${res.itemCategory} (Element: ${res.usefulGodElement})
+      Hexagram Analysis: ${res.meihua.en}
       
       Task:
-      1. Analyze the "Useful God" (${res.itemCategory}). e.g., if Wealth (Metal), look near metal/safe. If Parent (Earth), look in containers/pockets.
-      2. Use Element Logic. If Item is Metal and Direction is Fire, say "It is hard to find, maybe near heat".
-      3. Give 3 SPECIFIC spots to check based on modern life.
-      4. Keep it confident, concise (under 80 words). Use bolding for key spots.`;
+      1. Interpret the hexagram and element relationships.
+      2. Provide 3 specific, logical places to look for the item based on the "Useful God" element and modern context.
+      3. Be comforting but precise. Limit to 100 words.`;
 
+      // 尝试使用 Google Search Grounding (质量最好)
+      try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-3-flash-preview',
+            contents: prompt,
+            config: { tools: [{ googleSearch: {} }] }
+        });
+
+        if (response.text) {
+            const text = response.text;
+            const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+            const sources = chunks.map(c => c.web ? { uri: c.web.uri, title: c.web.title } : null).filter(c => c !== null) as { uri: string, title: string }[];
+            const uniqueSources = sources.filter((v,i,a) => a.findIndex(t => (t.uri === v.uri)) === i);
+
+            setAiInsight({ content: text, groundingSources: uniqueSources.length > 0 ? uniqueSources : undefined });
+            return; // 成功则直接返回
+        }
+      } catch (searchErr) {
+        console.warn("⚠️ Search grounding failed, falling back to basic generation...", searchErr);
+        // 如果搜索失败，不中断，继续下面的备用方案
+      }
+
+      // 备用方案：不使用工具，仅进行纯文本生成 (Gemini 3 Flash)
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
-        config: { tools: [{ googleSearch: {} }] }
       });
 
       const text = response.text || '';
-      const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
-      const sources = chunks.map(c => c.web ? { uri: c.web.uri, title: c.web.title } : null).filter(c => c !== null) as { uri: string, title: string }[];
-      const uniqueSources = sources.filter((v,i,a) => a.findIndex(t => (t.uri === v.uri)) === i);
+      setAiInsight({ content: text });
 
-      setAiInsight({ content: text, groundingSources: uniqueSources.length > 0 ? uniqueSources : undefined });
-    } catch (e) {
-      console.error(e);
-      setAiInsight({ content: t.aiNetError });
+    } catch (e: any) {
+      console.error("❌ AI Error:", e);
+      // 显示具体错误信息方便调试
+      let errMsg = t.aiNetError;
+      if (e.message?.includes('403')) errMsg += " (API Key 权限不足)";
+      else if (e.message?.includes('429')) errMsg += " (请求过于频繁)";
+      else if (e.message?.includes('404')) errMsg += " (模型不可用)";
+      else if (e.message?.includes('400')) errMsg += " (请求格式错误)";
+      
+      setAiInsight({ content: errMsg });
     }
   };
 
