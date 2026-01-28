@@ -449,8 +449,8 @@ const App: React.FC = () => {
 
   useEffect(() => { 
     storageProvider.getAll().then(setHistory); 
-    // Force rebuild log
-    console.log('OmniFind v1.0.2 - Force Deploy');
+    // Force rebuild log to verify deployment
+    console.log('OmniFind v1.0.3 - Proxy Fix Deployed');
   }, []);
 
   const handleBack = () => {
@@ -464,16 +464,8 @@ const App: React.FC = () => {
   };
 
   const generateAIInsight = async (input: DivinationInput, res: DivinationResult) => {
-    // 兼容 Vite 环境变量，增加安全检查
-    const apiKey = (import.meta as any).env?.VITE_GOOGLE_API_KEY || '';
-    
-    if (!apiKey) { 
-        console.error("❌ API Key is missing. Please check Vercel Environment Variables.");
-        setAiInsight({ content: t.missingKey }); 
-        return; 
-    }
-    
-    const ai = new GoogleGenAI({ apiKey });
+    // Guidelines: API key must be obtained exclusively from process.env.API_KEY
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     try {
       setAiInsight(null); 
@@ -511,12 +503,13 @@ const App: React.FC = () => {
             setAiInsight({ content: text, groundingSources: uniqueSources.length > 0 ? uniqueSources : undefined });
             return; // 成功则直接返回
         }
-      } catch (searchErr) {
-        console.warn("⚠️ Search grounding failed, falling back to basic generation...", searchErr);
-        // 如果搜索失败，不中断，继续下面的备用方案
+      } catch (searchErr: any) {
+        console.warn("⚠️ Search grounding failed (likely quota or region issue), falling back to basic generation...", searchErr);
+        // 如果是因为配额(429)或其他原因失败，尝试降级处理
       }
 
-      // 备用方案：不使用工具，仅进行纯文本生成 (Gemini 3 Flash)
+      // 备用方案：不使用工具，仅进行纯文本生成
+      // 如果 'gemini-3-flash-preview' 依然失败，你可以尝试将下方 model 改为 'gemini-1.5-flash'
       const response = await ai.models.generateContent({
         model: 'gemini-3-flash-preview',
         contents: prompt,
@@ -526,13 +519,18 @@ const App: React.FC = () => {
       setAiInsight({ content: text });
 
     } catch (e: any) {
-      console.error("❌ AI Error:", e);
+      console.error("❌ AI Error Full Details:", e);
       // 显示具体错误信息方便调试
       let errMsg = t.aiNetError;
-      if (e.message?.includes('403')) errMsg += " (API Key 权限不足)";
-      else if (e.message?.includes('429')) errMsg += " (请求过于频繁)";
-      else if (e.message?.includes('404')) errMsg += " (模型不可用)";
-      else if (e.message?.includes('400')) errMsg += " (请求格式错误)";
+      
+      // 显示原始错误代码以便排查
+      const rawMsg = e.message || JSON.stringify(e);
+      
+      if (rawMsg.includes('403')) errMsg += " (API Key 权限不足/地区限制)";
+      else if (rawMsg.includes('429')) errMsg += " (配额耗尽/请求过快)";
+      else if (rawMsg.includes('404')) errMsg += " (模型名称错误)";
+      else if (rawMsg.includes('503') || rawMsg.includes('500')) errMsg += " (Google 服务暂时不可用)";
+      else errMsg += ` [Code: ${rawMsg.slice(0, 50)}...]`;
       
       setAiInsight({ content: errMsg });
     }
