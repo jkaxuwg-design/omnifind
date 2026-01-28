@@ -447,7 +447,11 @@ const App: React.FC = () => {
     try { if (typeof window !== 'undefined' && window.navigator?.vibrate) window.navigator.vibrate(pattern); } catch (e) {}
   };
 
-  useEffect(() => { storageProvider.getAll().then(setHistory); }, []);
+  useEffect(() => { 
+    storageProvider.getAll().then(setHistory); 
+    // Force rebuild log
+    console.log('OmniFind v1.0.2 - Force Deploy');
+  }, []);
 
   const handleBack = () => {
     triggerHaptic(10);
