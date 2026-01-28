@@ -1,0 +1,25 @@
+
+{
+  "short_name": "都能找",
+  "name": "都能找 - 极速寻物占卜",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2921/2921226.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2921/2921226.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#000000",
+  "background_color": "#000000",
+  "description": "融合梅花易数与AI点评的寻物神器",
+  "categories": ["utilities", "lifestyle"]
+}

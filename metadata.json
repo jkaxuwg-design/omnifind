@@ -1,0 +1,8 @@
+{
+  "name": "Copy of 原始find",
+  "description": "融合梅花易数、六爻、小六壬与 Gemini 大模型实时点评的专业寻物工具。通过传统玄学算法定位丢失物品方位，并由 AI 大师提供破局建议。",
+  "requestFramePermissions": [],
+  "vercel_env_required": [
+    "API_KEY"
+  ]
+}
